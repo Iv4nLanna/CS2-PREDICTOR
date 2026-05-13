@@ -10,52 +10,90 @@ def _mock_response(json_data, status_code=200):
         def __init__(self, data, code):
             self._data = data
             self.status_code = code
-
         def json(self):
             return self._data
-
         def raise_for_status(self):
             if self.status_code >= 400:
                 import httpx
                 raise httpx.HTTPStatusError("err", request=None, response=self)
-
     return R(json_data, status_code)
 
 
-def test_fetch_team_ranking_returns_list():
+def test_search_teams():
     scraper = HLTVScraper(base_url="http://fake")
-    payload = [{"id": 1, "name": "Navi", "rank": 1, "country": "UA"}]
+    payload = {"results": [{"id": "4608", "name": "Navi", "country": "EU"}]}
     with patch("httpx.Client.get", return_value=_mock_response(payload)):
-        result = scraper.fetch_team_ranking()
-    assert result == payload
+        result = scraper.search_teams("Navi")
+    assert len(result) == 1
+    assert result[0]["name"] == "Navi"
 
 
-def test_fetch_team_ranking_raises_on_http_error():
+def test_search_teams_empty_on_missing():
+    scraper = HLTVScraper(base_url="http://fake")
+    with patch("httpx.Client.get", return_value=_mock_response({"results": []})):
+        result = scraper.search_teams("Unknown")
+    assert result == []
+
+
+def test_get_team_profile():
+    scraper = HLTVScraper(base_url="http://fake")
+    payload = {"teamProfile": {"name": "Navi", "worldRanking": 1}}
+    with patch("httpx.Client.get", return_value=_mock_response(payload)):
+        profile = scraper.get_team_profile(4608)
+    assert profile["name"] == "Navi"
+    assert profile["worldRanking"] == 1
+
+
+def test_get_team_upcoming():
+    scraper = HLTVScraper(base_url="http://fake")
+    payload = {
+        "upcomingMatches": [{
+            "matchId": "2394171", "rivalTeamName": "Legacy", "rivalTeamId": "12468",
+            "matchType": "Best of 3 (LAN)", "matchTimestamp": 1778715000000.0,
+            "eventName": "IEM Atlanta",
+        }]
+    }
+    with patch("httpx.Client.get", return_value=_mock_response(payload)):
+        matches = scraper.get_team_upcoming(4608)
+    assert len(matches) == 1
+    assert matches[0]["matchId"] == "2394171"
+
+
+def test_normalize_upcoming():
+    scraper = HLTVScraper(base_url="http://fake")
+    raw = [{
+        "matchId": "2394171", "rivalTeamName": "Legacy", "rivalTeamId": "12468",
+        "matchType": "Best of 3 (LAN)", "matchTimestamp": 1778715000000.0,
+        "eventName": "IEM Atlanta",
+    }]
+    result = scraper.normalize_upcoming_matches(4608, raw)
+    assert len(result) == 1
+    assert result[0]["id"] == 2394171
+    assert result[0]["team_a_id"] == 4608
+    assert result[0]["team_b_id"] == 12468
+    assert result[0]["format"] == "BO3"
+    assert result[0]["is_lan"] is True
+
+
+def test_normalize_results():
+    scraper = HLTVScraper(base_url="http://fake")
+    raw = [{
+        "matchId": "2394161",
+        "team1Name": "Navi", "team1Score": 2,
+        "team2Name": "Legacy", "team2Score": 1,
+        "matchType": "bo3", "matchDate": "2026-05-12",
+        "matchWon": True,
+    }]
+    name_to_id = {"Navi": 4608, "Legacy": 12468}
+    result = scraper.normalize_results(4608, raw, name_to_id)
+    assert len(result) == 1
+    assert result[0]["id"] == 2394161
+    assert result[0]["winner_id"] == 4608  # Navi won
+    assert "played_at" in result[0]
+
+
+def test_raises_on_http_error():
     scraper = HLTVScraper(base_url="http://fake")
     with patch("httpx.Client.get", return_value=_mock_response({}, status_code=500)):
         with pytest.raises(ScraperError):
-            scraper.fetch_team_ranking()
-
-
-def test_fetch_upcoming_matches():
-    scraper = HLTVScraper(base_url="http://fake")
-    payload = [{"id": 100, "team_a_id": 1, "team_b_id": 2, "format": "BO3"}]
-    with patch("httpx.Client.get", return_value=_mock_response(payload)):
-        result = scraper.fetch_upcoming_matches()
-    assert result[0]["id"] == 100
-
-
-def test_fetch_match_results_since():
-    scraper = HLTVScraper(base_url="http://fake")
-    payload = [{"id": 100, "winner_id": 1}]
-    with patch("httpx.Client.get", return_value=_mock_response(payload)):
-        result = scraper.fetch_match_results(since_days=7)
-    assert len(result) == 1
-
-
-def test_fetch_team_detail():
-    scraper = HLTVScraper(base_url="http://fake")
-    payload = {"id": 1, "name": "Navi", "players": []}
-    with patch("httpx.Client.get", return_value=_mock_response(payload)):
-        result = scraper.fetch_team(team_id=1)
-    assert result["name"] == "Navi"
+            scraper.search_teams("Navi")
