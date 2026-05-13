@@ -44,3 +44,16 @@ class ModelAccuracyEntry(BaseModel):
     trained_at: datetime
     accuracy: float
     features_used: list[str]
+
+
+class TeamStats(BaseModel):
+    team: TeamSummary
+    recent_form: float
+    last_matches_played: int
+
+
+class TeamDetail(BaseModel):
+    team: TeamSummary
+    recent_form: float
+    map_winrates: dict[str, float]
+    last_matches_played: int
