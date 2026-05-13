@@ -63,47 +63,48 @@ def run_pipeline(session: Session | None = None, min_matches_to_retrain: int | N
             upsert_teams(session, teams)
             session.commit()
 
-            # Build team name -> ID map from the session
+            # Build team name -> ID map (short transaction)
             from cs2_predictor.db.models import Team
             all_teams = session.query(Team).all()
-            team_name_to_id: dict[str, int] = {}
-            for t in all_teams:
-                if t.name:
-                    team_name_to_id[t.name] = t.hltv_id
+            team_name_to_id = {t.name: t.hltv_id for t in all_teams if t.name}
+            session.commit()
 
-            # Phase 2: Fetch upcoming matches and results per team
+            # Phase 3: Fetch upcoming and results per team, commit per team
             seen_upcoming: set[int] = set()
             seen_results: set[int] = set()
-            all_upcoming: list[dict] = []
-            all_results: list[dict] = []
 
             for team in teams:
                 tid = team["id"]
+                upcoming_batch: list[dict] = []
+                results_batch: list[dict] = []
+
                 try:
-                    # Upcoming
                     raw_upcoming = scraper.get_team_upcoming(tid)
                     for m in scraper.normalize_upcoming_matches(tid, raw_upcoming):
                         if m["id"] not in seen_upcoming:
                             seen_upcoming.add(m["id"])
-                            all_upcoming.append(m)
+                            upcoming_batch.append(m)
                 except Exception as e:
-                    logger.warning("Failed to get upcoming for team %d: %s", tid, e)
+                    logger.warning("Failed upcoming for team %d: %s", tid, e)
 
                 try:
-                    # Results
                     raw_results = scraper.get_team_results(tid)
                     for m in scraper.normalize_results(tid, raw_results, team_name_to_id):
                         if m["id"] not in seen_results:
                             seen_results.add(m["id"])
-                            all_results.append(m)
+                            results_batch.append(m)
                 except Exception as e:
-                    logger.warning("Failed to get results for team %d: %s", tid, e)
+                    logger.warning("Failed results for team %d: %s", tid, e)
 
-            if all_upcoming:
-                upsert_matches(session, all_upcoming)
-            if all_results:
-                upsert_match_results(session, all_results)
-            session.commit()
+                try:
+                    if upcoming_batch:
+                        upsert_matches(session, upcoming_batch)
+                    if results_batch:
+                        upsert_match_results(session, results_batch)
+                    session.commit()
+                except Exception as e:
+                    session.rollback()
+                    logger.warning("Failed persist for team %d: %s", tid, e)
         except Exception as e:
             logger.exception("scraper failure")
             errors["scraper_error"] = str(e)
