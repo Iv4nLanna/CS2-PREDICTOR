@@ -1,0 +1,51 @@
+name: Pipeline
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv run alembic upgrade head
+
+      - name: Run pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          HLTV_API_BASE_URL: ${{ secrets.HLTV_API_BASE_URL }}
+          PIPELINE_INTERVAL_HOURS: 6
+          MIN_MATCHES_TO_RETRAIN: 10
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv run python -m cs2_predictor.pipeline.run
