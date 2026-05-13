@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: cs2-predictor-api
+    env: python
+    plan: free
+    rootDir: backend
+    buildCommand: |
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      export PATH="$HOME/.local/bin:$PATH"
+      uv venv
+      uv pip install -e ".[dev]"
+    startCommand: bash start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: DATABASE_URL
+        sync: false
+      - key: HLTV_API_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PATH
+        value: "/opt/render/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
