@@ -20,6 +20,12 @@ def test_perfect_record_recent():
 
 def test_old_match_weighs_less_than_recent():
     ref = datetime(2026, 5, 1, tzinfo=timezone.utc)
-    recent = [{"played_at": ref - timedelta(days=10), "team_won": True}]
-    old = [{"played_at": ref - timedelta(days=400), "team_won": True}]
-    assert compute_head_to_head(recent, reference_date=ref) > compute_head_to_head(old, reference_date=ref)
+    recent_win_old_loss = [
+        {"played_at": ref - timedelta(days=10), "team_won": True},
+        {"played_at": ref - timedelta(days=400), "team_won": False},
+    ]
+    old_win_recent_loss = [
+        {"played_at": ref - timedelta(days=400), "team_won": True},
+        {"played_at": ref - timedelta(days=10), "team_won": False},
+    ]
+    assert compute_head_to_head(recent_win_old_loss, reference_date=ref) > compute_head_to_head(old_win_recent_loss, reference_date=ref)
