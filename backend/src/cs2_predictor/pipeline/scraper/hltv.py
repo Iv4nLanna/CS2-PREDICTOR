@@ -49,35 +49,43 @@ class HLTVScraper:
         self.base_url = base_url.rstrip("/")
         self._client = httpx.Client(timeout=timeout, base_url=self.base_url)
 
-    def _get(self, path: str) -> dict | list:
+    def _get(self, path: str, request_timeout: float | None = None) -> dict | list:
         try:
-            response = self._client.get(path)
+            opts = {}
+            if request_timeout is not None:
+                opts["timeout"] = request_timeout
+            response = self._client.get(path, **opts)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
             raise ScraperError(f"HLTV API request failed: {path}: {e}") from e
 
     def search_teams(self, query: str) -> list[dict]:
-        """Search teams by name. Returns list with id, name, country."""
-        data = self._get(f"/teams/{query}/search")
+        data = self._get(f"/teams/{query}/search", request_timeout=10.0)
         return data.get("results", []) if isinstance(data, dict) else []
 
     def get_team_profile(self, team_id: int) -> dict | None:
-        """Get team profile including world ranking."""
-        data = self._get(f"/teams/{team_id}/profile")
-        if isinstance(data, dict):
-            return data.get("teamProfile")
+        try:
+            data = self._get(f"/teams/{team_id}/profile", request_timeout=5.0)
+            if isinstance(data, dict):
+                return data.get("teamProfile")
+        except ScraperError:
+            pass
         return None
 
     def get_team_upcoming(self, team_id: int) -> list[dict]:
-        """Get upcoming matches for a team."""
-        data = self._get(f"/teams/{team_id}/upcomingmatches/")
-        return data.get("upcomingMatches", []) if isinstance(data, dict) else []
+        try:
+            data = self._get(f"/teams/{team_id}/upcomingmatches/", request_timeout=10.0)
+            return data.get("upcomingMatches", []) if isinstance(data, dict) else []
+        except ScraperError:
+            return []
 
     def get_team_results(self, team_id: int) -> list[dict]:
-        """Get results for a team."""
-        data = self._get(f"/teams/{team_id}/results/")
-        return data.get("results", []) if isinstance(data, dict) else []
+        try:
+            data = self._get(f"/teams/{team_id}/results/", request_timeout=15.0)
+            return data.get("results", []) if isinstance(data, dict) else []
+        except ScraperError:
+            return []
 
     def fetch_all_teams(self) -> list[dict]:
         """Search all seed teams and return deduplicated list.

@@ -27,10 +27,19 @@ def upsert_teams(session: Session, payload: list[dict]) -> None:
         team.updated_at = datetime.now(timezone.utc)
 
 
+def _get_or_create_team(session: Session, hltv_id: int, name: str = "") -> Team:
+    team = session.query(Team).filter_by(hltv_id=hltv_id).one_or_none()
+    if team is None:
+        team = Team(hltv_id=hltv_id, name=name or f"Team {hltv_id}")
+        session.add(team)
+        session.flush()
+    return team
+
+
 def upsert_matches(session: Session, payload: list[dict]) -> None:
     for item in payload:
-        team_a = session.query(Team).filter_by(hltv_id=item["team_a_id"]).one()
-        team_b = session.query(Team).filter_by(hltv_id=item["team_b_id"]).one()
+        team_a = _get_or_create_team(session, item["team_a_id"])
+        team_b = _get_or_create_team(session, item["team_b_id"])
         match = session.query(Match).filter_by(hltv_id=item["id"]).one_or_none()
         if match is None:
             match = Match(hltv_id=item["id"])
@@ -49,7 +58,7 @@ def upsert_matches(session: Session, payload: list[dict]) -> None:
 def upsert_match_results(session: Session, payload: list[dict]) -> None:
     for item in payload:
         match = session.query(Match).filter_by(hltv_id=item["id"]).one()
-        winner = session.query(Team).filter_by(hltv_id=item["winner_id"]).one()
+        winner = _get_or_create_team(session, item["winner_id"])
         result = session.query(MatchResult).filter_by(match_id=match.id).one_or_none()
         if result is None:
             result = MatchResult(match_id=match.id)
