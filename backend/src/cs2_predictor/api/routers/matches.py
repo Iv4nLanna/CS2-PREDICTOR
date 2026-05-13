@@ -74,3 +74,36 @@ def list_upcoming(db: Session = Depends(get_db)):
         .all()
     )
     return [_to_prediction_dto(m, p) for m, p in rows]
+
+
+@router.get("/{match_id}/prediction", response_model=MatchPrediction)
+def get_prediction(match_id: int, db: Session = Depends(get_db)):
+    row = (
+        db.query(Match, Prediction)
+        .join(Prediction, Prediction.match_id == Match.id)
+        .filter(Match.id == match_id)
+        .order_by(Prediction.created_at.desc())
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="prediction not found")
+    match, prediction = row
+    return _to_prediction_dto(match, prediction)
+
+
+@router.get("/{match_id}/features", response_model=list[MatchFeatureSet])
+def get_features(match_id: int, db: Session = Depends(get_db)):
+    rows = db.query(TeamFeatures).filter_by(match_id=match_id).all()
+    if not rows:
+        raise HTTPException(status_code=404, detail="features not found")
+    return [
+        MatchFeatureSet(
+            team_id=r.team_id,
+            win_rate_recent_decayed=r.win_rate_recent_decayed,
+            head_to_head_decayed=r.head_to_head_decayed,
+            hltv_ranking_snapshot=r.hltv_ranking_snapshot,
+            sos_score=r.sos_score,
+            map_stats=r.map_stats,
+        )
+        for r in rows
+    ]
