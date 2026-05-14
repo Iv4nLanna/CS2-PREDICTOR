@@ -1,4 +1,3 @@
-import scrapy
 from scrapy import Field, Item
 
 __all__ = ["TeamItem", "MatchItem", "ResultItem", "MatchDetailItem"]

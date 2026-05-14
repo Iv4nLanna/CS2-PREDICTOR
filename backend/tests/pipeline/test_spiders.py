@@ -1,4 +1,4 @@
-from cs2_predictor.pipeline.scraper.items import TeamItem, MatchItem, ResultItem, MatchDetailItem
+from cs2_predictor.pipeline.scraper.items import MatchDetailItem, MatchItem, ResultItem, TeamItem
 
 
 def test_items_import():
@@ -80,3 +80,15 @@ def test_match_detail_spider_import():
 def test_runner_import():
     from cs2_predictor.pipeline.scraper.runner import run_scrapers
     assert callable(run_scrapers)
+
+
+def test_safe_float():
+    from cs2_predictor.pipeline.scraper.utils import safe_float, safe_int
+    assert safe_float("1.15") == 1.15
+    assert safe_float("-") is None
+    assert safe_float("") is None
+    assert safe_float(None) is None
+    assert safe_float("85.7%") == 85.7
+    assert safe_int("10") == 10
+    assert safe_int("abc") is None
+    assert safe_int(None) is None

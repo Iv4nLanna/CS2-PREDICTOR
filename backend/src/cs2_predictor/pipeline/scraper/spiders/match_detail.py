@@ -4,26 +4,9 @@ import scrapy
 from scrapy.http import Response
 
 from cs2_predictor.pipeline.scraper.items import MatchDetailItem
+from cs2_predictor.pipeline.scraper.utils import safe_float, safe_int
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_float(value: str | None) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value.strip().rstrip("%"))
-    except (ValueError, TypeError):
-        return None
-
-
-def _safe_int(value: str | None) -> int | None:
-    if value is None:
-        return None
-    try:
-        return int(value.strip())
-    except (ValueError, TypeError):
-        return None
 
 
 class MatchDetailSpider(scrapy.Spider):
@@ -55,11 +38,11 @@ class MatchDetailSpider(scrapy.Spider):
                     continue
                 players.append({
                     "name": name.strip(),
-                    "kills": _safe_int(row.css(".st-kills::text").get()),
-                    "deaths": _safe_int(row.css(".st-deaths::text").get()),
-                    "adr": _safe_float(row.css(".st-adr::text").get()),
-                    "kast": _safe_float(row.css(".st-kast::text").get()),
-                    "rating": _safe_float(row.css(".st-rating::text").get()),
+                    "kills": safe_int(row.css(".st-kills::text").get()),
+                    "deaths": safe_int(row.css(".st-deaths::text").get()),
+                    "adr": safe_float(row.css(".st-adr::text").get()),
+                    "kast": safe_float(row.css(".st-kast::text").get()),
+                    "rating": safe_float(row.css(".st-rating::text").get()),
                 })
             if team_name:
                 team_stats.append({"team_name": team_name.strip(), "players": players})

@@ -33,11 +33,22 @@ def run_pipeline(session: Session | None = None, min_matches_to_retrain: int | N
 
     try:
         try:
-            result = run_scrapers(["teams", "matches", "results"])
+            run_scrapers(["teams", "matches", "results"], session=session)
             session.commit()
         except Exception as e:
             logger.exception("scraper failure")
             errors["scraper_error"] = str(e)
+            session.rollback()
+
+        try:
+            finished = session.query(Match).filter(Match.status == MatchStatus.FINISHED).all()
+            match_ids = [m.hltv_id for m in finished if m.hltv_id]
+            if match_ids:
+                run_scrapers(["match_detail"], session=session, match_ids=match_ids)
+                session.commit()
+        except Exception as e:
+            logger.exception("match detail scraper failure")
+            errors.setdefault("scraper_errors", []).append(str(e))
             session.rollback()
 
         try:

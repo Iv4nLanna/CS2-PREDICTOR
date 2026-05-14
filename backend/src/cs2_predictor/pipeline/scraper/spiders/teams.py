@@ -4,17 +4,9 @@ import scrapy
 from scrapy.http import Response
 
 from cs2_predictor.pipeline.scraper.items import TeamItem
+from cs2_predictor.pipeline.scraper.utils import safe_float
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_float(value: str | None) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value.strip())
-    except (ValueError, TypeError):
-        return None
 
 
 class TeamRankingSpider(scrapy.Spider):
@@ -37,7 +29,7 @@ class TeamRankingSpider(scrapy.Spider):
                 player_rating = player_el.css(".rating::text").get()
                 players.append({
                     "name": player_name,
-                    "rating": _safe_float(player_rating),
+                    "rating": safe_float(player_rating),
                 })
             yield TeamItem(
                 hltv_id=int(team_id) if team_id else None,
