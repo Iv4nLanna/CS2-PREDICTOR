@@ -1,11 +1,25 @@
+import logging
+
 import scrapy
 from scrapy.http import Response
 
 from cs2_predictor.pipeline.scraper.items import TeamItem
 
+logger = logging.getLogger(__name__)
+
+
+def _safe_float(value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value.strip())
+    except (ValueError, TypeError):
+        return None
+
 
 class TeamRankingSpider(scrapy.Spider):
     name = "teams"
+    allowed_domains = ["hltv.org"]
     start_urls = ["https://www.hltv.org/ranking/teams/"]
 
     def parse(self, response: Response):
@@ -14,19 +28,21 @@ class TeamRankingSpider(scrapy.Spider):
             name = rank_box.css(".teamName::text").get()
             country = rank_box.css(".teamName img::attr(title)").get()
             team_id = rank_box.css("a.moreLink::attr(href)").re_first(r"/team/(\d+)/")
+            if not name:
+                logger.warning("Team without name in ranking box")
+                continue
             players = []
             for player_el in rank_box.css(".player-ratings .player"):
                 player_name = player_el.css(".player-nick::text").get()
                 player_rating = player_el.css(".rating::text").get()
                 players.append({
                     "name": player_name,
-                    "rating": float(player_rating) if player_rating else None,
+                    "rating": _safe_float(player_rating),
                 })
-            item = TeamItem(
+            yield TeamItem(
                 hltv_id=int(team_id) if team_id else None,
-                name=name,
+                name=name.strip(),
                 country=country,
                 rank=int(rank) if rank else None,
                 players=players,
             )
-            yield item
