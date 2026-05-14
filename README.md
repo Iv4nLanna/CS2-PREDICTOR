@@ -1,5 +1,8 @@
 # CS2 Win Predictor
 
+> **Status: Em desenvolvimento — não funcional no momento.**
+> O HLTV.org bloqueia scrapers automatizados (Cloudflare). Pendente de integração com FACEIT API ou outra fonte de dados confiável.
+
 Plataforma que prevê probabilidade de vitória em partidas profissionais de Counter-Strike 2 usando regressão logística calibrada sobre dados do HLTV.
 
 ## Stack
