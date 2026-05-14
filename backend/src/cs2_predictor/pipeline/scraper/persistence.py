@@ -57,7 +57,11 @@ def upsert_matches(session: Session, payload: list[dict]) -> None:
 
 def upsert_match_results(session: Session, payload: list[dict]) -> None:
     for item in payload:
-        match = session.query(Match).filter_by(hltv_id=item["id"]).one()
+        match = session.query(Match).filter_by(hltv_id=item["id"]).one_or_none()
+        if match is None:
+            match = Match(hltv_id=item["id"])
+            session.add(match)
+            session.flush()
         winner = _get_or_create_team(session, item["winner_id"])
         result = session.query(MatchResult).filter_by(match_id=match.id).one_or_none()
         if result is None:

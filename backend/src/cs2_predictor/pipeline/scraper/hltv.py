@@ -7,9 +7,6 @@ logger = logging.getLogger(__name__)
 
 SEED_TEAMS = [
     "Natus Vincere", "FaZe", "Vitality", "Spirit", "G2",
-    "MOUZ", "Liquid", "Team Falcons", "The MongolZ", "3DMAX",
-    "FURIA", "paiN", "Imperial", "MIBR", "RED Canids",
-    "Eternal Fire", "SAW", "BIG", "HEROIC", "Astralis",
 ]
 
 MATCH_TYPE_MAP = {
@@ -45,28 +42,28 @@ def _ts_to_dt(timestamp_ms: float) -> datetime:
 
 
 class HLTVScraper:
-    def __init__(self, base_url: str, timeout: float = 30.0):
+    def __init__(self, base_url: str, timeout: float = 120.0):
         self.base_url = base_url.rstrip("/")
         self._client = httpx.Client(timeout=timeout, base_url=self.base_url)
 
-    def _get(self, path: str, request_timeout: float | None = None) -> dict | list:
+    def _get(self, path: str) -> dict | list:
         try:
-            opts = {}
-            if request_timeout is not None:
-                opts["timeout"] = request_timeout
-            response = self._client.get(path, **opts)
+            response = self._client.get(path)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
             raise ScraperError(f"HLTV API request failed: {path}: {e}") from e
 
     def search_teams(self, query: str) -> list[dict]:
-        data = self._get(f"/teams/{query}/search", request_timeout=10.0)
-        return data.get("results", []) if isinstance(data, dict) else []
+        try:
+            data = self._get(f"/teams/{query}/search")
+            return data.get("results", []) if isinstance(data, dict) else []
+        except ScraperError:
+            return []
 
     def get_team_profile(self, team_id: int) -> dict | None:
         try:
-            data = self._get(f"/teams/{team_id}/profile", request_timeout=5.0)
+            data = self._get(f"/teams/{team_id}/profile")
             if isinstance(data, dict):
                 return data.get("teamProfile")
         except ScraperError:
@@ -75,14 +72,14 @@ class HLTVScraper:
 
     def get_team_upcoming(self, team_id: int) -> list[dict]:
         try:
-            data = self._get(f"/teams/{team_id}/upcomingmatches/", request_timeout=10.0)
+            data = self._get(f"/teams/{team_id}/upcoming-matches")
             return data.get("upcomingMatches", []) if isinstance(data, dict) else []
         except ScraperError:
             return []
 
     def get_team_results(self, team_id: int) -> list[dict]:
         try:
-            data = self._get(f"/teams/{team_id}/results/", request_timeout=15.0)
+            data = self._get(f"/teams/{team_id}/results/")
             return data.get("results", []) if isinstance(data, dict) else []
         except ScraperError:
             return []

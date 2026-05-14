@@ -69,14 +69,12 @@ def run_pipeline(session: Session | None = None, min_matches_to_retrain: int | N
             team_name_to_id = {t.name: t.hltv_id for t in all_teams if t.name}
             session.commit()
 
-            # Phase 3: Fetch upcoming and results per team, commit per team
+            # Phase 3: Fetch upcoming matches per team, commit per team
             seen_upcoming: set[int] = set()
-            seen_results: set[int] = set()
 
             for team in teams:
                 tid = team["id"]
                 upcoming_batch: list[dict] = []
-                results_batch: list[dict] = []
 
                 try:
                     raw_upcoming = scraper.get_team_upcoming(tid)
@@ -88,19 +86,8 @@ def run_pipeline(session: Session | None = None, min_matches_to_retrain: int | N
                     logger.warning("Failed upcoming for team %d: %s", tid, e)
 
                 try:
-                    raw_results = scraper.get_team_results(tid)
-                    for m in scraper.normalize_results(tid, raw_results, team_name_to_id):
-                        if m["id"] not in seen_results:
-                            seen_results.add(m["id"])
-                            results_batch.append(m)
-                except Exception as e:
-                    logger.warning("Failed results for team %d: %s", tid, e)
-
-                try:
                     if upcoming_batch:
                         upsert_matches(session, upcoming_batch)
-                    if results_batch:
-                        upsert_match_results(session, results_batch)
                     session.commit()
                 except Exception as e:
                     session.rollback()
