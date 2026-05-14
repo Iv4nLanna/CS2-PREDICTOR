@@ -18,3 +18,10 @@ def test_match_item_fields():
     item = MatchItem(hltv_id=100, team_a_name="A", team_b_name="B", format="BO3")
     assert item["hltv_id"] == 100
     assert item["format"] == "BO3"
+
+
+def test_team_spider_import():
+    from cs2_predictor.pipeline.scraper.spiders.teams import TeamRankingSpider
+    spider = TeamRankingSpider()
+    assert spider.name == "teams"
+    assert "hltv.org/ranking" in spider.start_urls[0]
