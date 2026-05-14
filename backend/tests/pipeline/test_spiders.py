@@ -54,3 +54,24 @@ def test_parse_ranking_safe_rating():
     assert items[0]["hltv_id"] == 123
     assert items[0]["players"][0]["rating"] == 1.15
     assert items[0]["players"][1]["rating"] is None
+
+
+def test_matches_spider_import():
+    from cs2_predictor.pipeline.scraper.spiders.matches import UpcomingMatchesSpider
+    spider = UpcomingMatchesSpider()
+    assert spider.name == "matches"
+    assert "hltv.org/matches" in spider.start_urls[0]
+
+
+def test_results_spider_import():
+    from cs2_predictor.pipeline.scraper.spiders.results import ResultsSpider
+    spider = ResultsSpider()
+    assert spider.name == "results"
+    assert spider.start_urls == ["https://www.hltv.org/results"]
+
+
+def test_match_detail_spider_import():
+    from cs2_predictor.pipeline.scraper.spiders.match_detail import MatchDetailSpider
+    spider = MatchDetailSpider(match_ids=[1, 2])
+    assert spider.name == "match_detail"
+    assert spider.match_ids == [1, 2]
