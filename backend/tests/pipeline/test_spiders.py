@@ -75,3 +75,8 @@ def test_match_detail_spider_import():
     spider = MatchDetailSpider(match_ids=[1, 2])
     assert spider.name == "match_detail"
     assert spider.match_ids == [1, 2]
+
+
+def test_runner_import():
+    from cs2_predictor.pipeline.scraper.runner import run_scrapers
+    assert callable(run_scrapers)
